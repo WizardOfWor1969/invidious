@@ -181,6 +181,12 @@ module Invidious::Channels::Channels
 
     LOGGER.trace("fetch_channel: #{ucid} : Extracting videos from channel")
     videos.select(SearchVideo).each do |video|
+      # Skip videos that have not aired yet (upcoming premieres/scheduled
+      # streams): the channel page has no upload date for them, so they would
+      # show up in subscriptions as "shared now", re-stamped on every refresh.
+      # Once they have aired, the next refresh inserts them with a real date.
+      next if video.premiere_timestamp.try &.> Time.utc
+
       video = ChannelVideo.new({
         id:                 video.id,
         title:              video.title,
