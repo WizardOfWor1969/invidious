@@ -209,6 +209,14 @@ module Invidious::Channels::Channels
       if was_insert
         LOGGER.trace("fetch_channel: #{ucid} : video #{video.id} : Inserted, updating subscriptions")
         NOTIFICATION_CHANNEL.send(VideoNotification.from_video(video))
+        # Mark subscribers' feeds dirty synchronously, in the same DB pass as the
+        # insert. NotificationJob batches notifications in memory for up to a
+        # minute, so a restart before the batch is persisted (e.g. a scheduled
+        # restart) loses it — and if that job dies, the flag is never set at
+        # all. Either way subscribers' feed views never refresh. The direct
+        # write is durable; NotificationJob still handles the notifications
+        # arrays and SSE push.
+        Invidious::Database::Users.feed_needs_update(video.ucid)
       else
         LOGGER.trace("fetch_channel: #{ucid} : video #{video.id} : Updated")
       end
@@ -241,6 +249,9 @@ module Invidious::Channels::Channels
             was_insert = Invidious::Database::ChannelVideos.insert(video)
             if was_insert
               NOTIFICATION_CHANNEL.send(VideoNotification.from_video(video))
+              # Same as above: durable feed flag instead of relying on
+              # NotificationJob's in-memory batch surviving.
+              Invidious::Database::Users.feed_needs_update(video.ucid)
             end
           end
         end
