@@ -723,6 +723,7 @@ private module Parsers
         title = metadata.dig("title", "content").as_s
         published = nil
         view_count_text = nil
+        premiere_text = nil
         # Contains the views of the video and the published time of the video.
         if (metadata_rows = metadata.dig("metadata", "contentMetadataViewModel", "metadataRows").try &.as_a)
           metadata_rows.each do |row|
@@ -737,6 +738,16 @@ private module Parsers
                 .try { |item| decode_date(item.dig("text", "content").as_s) }
             end
 
+            # Upcoming premieres / scheduled streams carry a "Premieres <date>"
+            # or "Scheduled for <date>" part instead of views/date rows.
+            if premiere_text.nil?
+              premiere_text = metadata_parts.try &.find { |item|
+                item["icon"]?.nil? && item.dig?("text", "content").try { |text|
+                  text.as_s.starts_with?("Premieres ") || text.as_s.starts_with?("Scheduled for ")
+                }
+              }.try &.dig("text", "content").as_s
+            end
+
             break if !view_count_text.nil? && !published.nil?
           end
         end
@@ -744,8 +755,25 @@ private module Parsers
         view_count = short_text_to_number(view_count_text || "0")
 
         length = thumbnail_view_model.dig("overlays", 0, "thumbnailBottomOverlayViewModel", "badges", 0, "thumbnailBadgeViewModel", "text").try &.as_s
+        badge_style = thumbnail_view_model.dig?("overlays", 0, "thumbnailBottomOverlayViewModel", "badges", 0, "thumbnailBadgeViewModel", "badgeStyle").try &.as_s
 
         length_seconds = decode_length_seconds(length) if length
+
+        # Upcoming premieres and scheduled livestreams have no views/date rows:
+        # their metadata says "Premieres <date>" / "Scheduled for <date>" and
+        # the duration badge says "Upcoming". Without this, their published
+        # time falls back to "now" on every channel refresh. (premiere_text is
+        # collected in the metadata-row loop above.)
+        premiere_timestamp = Time.unix(0)
+        if premiere_text || length == "Upcoming"
+          # If the date can't be parsed, use a near-future timestamp so the
+          # video is still treated as upcoming (and retried on next refresh)
+          premiere_timestamp = decode_upcoming_date(premiere_text) || Time.utc + 1.day
+        end
+
+        # A LIVE-styled badge (where the duration normally is) marks a video
+        # that is airing right now (livestream or an already-started premiere).
+        badges = (badge_style == "THUMBNAIL_OVERLAY_BADGE_STYLE_LIVE" || length == "LIVE") ? VideoBadges::LiveNow : VideoBadges::None
 
         return SearchVideo.new({
           title:              title,
@@ -756,10 +784,10 @@ private module Parsers
           views:              view_count,
           description_html:   "",
           length_seconds:     length_seconds || 0,
-          premiere_timestamp: Time.unix(0),
+          premiere_timestamp: premiere_timestamp,
           author_verified:    false,
           author_thumbnail:   nil,
-          badges:             VideoBadges::None,
+          badges:             badges,
         })
         # If it's a playlist, it's content_type would be "LOCKUP_CONTENT_TYPE_PLAYLIST"
         # If it's a podcast, it's content_type would be "LOCKUP_CONTENT_TYPE_PODCAST"
