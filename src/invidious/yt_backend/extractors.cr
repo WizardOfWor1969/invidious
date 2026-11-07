@@ -85,6 +85,17 @@ private module Parsers
         author_id = author_fallback.id
       end
 
+      # Collaboration videos ("Channel A and Channel B") carry no browse
+      # endpoint on the owner text run, so author_id would end up empty.
+      # The channel avatar link still has the owner's channel id, so use
+      # that as a fallback.
+      if author_id.empty? && (owner_id = item_contents.dig?(
+           "channelThumbnailSupportedRenderers", "channelThumbnailWithLinkRenderer",
+           "navigationEndpoint", "browseEndpoint", "browseId"
+         ).try &.as_s)
+        author_id = owner_id
+      end
+
       author_thumbnail = item_contents.dig?("channelThumbnailSupportedRenderers", "channelThumbnailWithLinkRenderer", "thumbnail", "thumbnails", 0, "url").try &.as_s
 
       author_verified = has_verified_badge?(item_contents["ownerBadges"]?)
