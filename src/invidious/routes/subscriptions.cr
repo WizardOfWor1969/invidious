@@ -43,6 +43,22 @@ module Invidious::Routes::Subscriptions
       end
     when "remove_subscriptions"
       Invidious::Database::Users.unsubscribe_channel(user, channel_id)
+    when "blacklist_channel"
+      if !channel_id.empty? && !user.blacklist.includes? channel_id
+        # Try to cache channel info (so the blacklist manager can show its
+        # name), but don't fail the request if YouTube can't be reached.
+        begin
+          Invidious::Channels::Channels.get_channel(channel_id)
+        rescue
+        end
+
+        Invidious::Database::Users.blacklist_channel(user, channel_id)
+
+        # Blacklisting also unsubscribes (no-op when not subscribed).
+        Invidious::Database::Users.unsubscribe_channel(user, channel_id)
+      end
+    when "unblacklist_channel"
+      Invidious::Database::Users.unblacklist_channel(user, channel_id)
     else
       return Errors.error_json(400, "Unsupported action #{action}")
     end
@@ -101,5 +117,31 @@ module Invidious::Routes::Subscriptions
     end
 
     templated "user/subscription_manager"
+  end
+
+  def self.blacklist_manager(env)
+    locale = env.get("preferences").as(Preferences).locale
+
+    user = env.get? "user"
+    sid = env.get? "sid"
+    referer = get_referer(env)
+
+    if !user
+      return env.redirect referer
+    end
+
+    user = user.as(User)
+    sid = sid.as(String)
+
+    channels = Invidious::Database::Channels.select(user.blacklist)
+    channels = (channels || [] of InvidiousChannel).sort_by!(&.author.downcase)
+
+    # Blacklisted channels that were never cached in the `channels` table
+    # (e.g. YouTube was unreachable when they were blacklisted). They are
+    # still manageable, shown by their raw channel id.
+    known_ids = channels.map(&.id)
+    unknown_ids = user.blacklist.reject { |ucid| known_ids.includes?(ucid) }.sort!
+
+    templated "user/blacklist_manager"
   end
 end

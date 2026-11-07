@@ -78,11 +78,16 @@ module Invidious::Routes::Search
 
       redirect_url = Invidious::Frontend::Misc.redirect_url(env)
 
+      # Remove blacklisted channels. The pagination links are computed from
+      # the unfiltered count so a filtered page never hides the Next link.
+      raw_item_count = items.size
+      items = Invidious::Blacklist.filter(items, user.try &.as(User))
+
       # Pagination
       page_nav_html = Frontend::Pagination.nav_numeric(locale,
         base_url: "/search?#{query.to_http_params}",
         current_page: query.page,
-        show_next: (items.size >= 20)
+        show_next: (raw_item_count >= 20)
       )
 
       if query.type == Invidious::Search::Query::Type::Channel
@@ -117,12 +122,17 @@ module Invidious::Routes::Search
       return Errors.error_template(500, ex)
     end
 
+    # Remove blacklisted channels (before the pagination count below)
+    user = env.get?("user").try &.as(User)
+    raw_item_count = items.size
+    items = Invidious::Blacklist.filter(items, user)
+
     # Pagination
     hashtag_encoded = URI.encode_www_form(hashtag, space_to_plus: false)
     page_nav_html = Frontend::Pagination.nav_numeric(locale,
       base_url: "/hashtag/#{hashtag_encoded}",
       current_page: page,
-      show_next: (items.size >= 60)
+      show_next: (raw_item_count >= 60)
     )
 
     templated "hashtag"

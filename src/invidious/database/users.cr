@@ -115,6 +115,26 @@ module Invidious::Database::Users
     PG_DB.exec(request, ucid, user.email)
   end
 
+  def blacklist_channel(user : User, ucid : String)
+    request = <<-SQL
+      UPDATE users
+      SET blacklist = array_append(blacklist, $1)
+      WHERE email = $2
+      SQL
+
+    PG_DB.exec(request, ucid, user.email)
+  end
+
+  def unblacklist_channel(user : User, ucid : String)
+    request = <<-SQL
+      UPDATE users
+      SET blacklist = array_remove(blacklist, $1)
+      WHERE email = $2
+      SQL
+
+    PG_DB.exec(request, ucid, user.email)
+  end
+
   # -------------------
   #  Update (notifs)
   # -------------------

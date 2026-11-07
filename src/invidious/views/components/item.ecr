@@ -24,6 +24,16 @@
                         <%- if author_verified %>&nbsp;<i class="icon ion ion-md-checkmark-circle"></i><% end -%>
                     </p>
                 </a></div>
+
+                <% bl_user = env.get?("user").try &.as(User) %>
+                <% if bl_user && !bl_user.blacklist.includes?(item.ucid) %>
+                    <form style="display:inline" action="/subscription_ajax?action=blacklist_channel&c=<%= item.ucid %>&referer=<%= env.get("current_page") %>" method="post">
+                        <input type="hidden" name="csrf_token" value="<%= HTML.escape(env.get?("csrf_token").try &.as(String) || "") %>">
+                        <button type="submit" title="Blacklist channel" style="all:unset;cursor:pointer">
+                            <i class="icon ion-md-close-circle"></i>
+                        </button>
+                    </form>
+                <% end %>
             </div>
 
             <% if !item.channel_handle.nil? %><p class="channel-name" dir="auto"><%= item.channel_handle %></p><% end %>
@@ -193,6 +203,17 @@
                         </p>
                     <% end %>
                 </div>
+
+                <% bl_user = env.get?("user").try &.as(User) %>
+                <% bl_ucid = item.ucid.to_s %>
+                <% if bl_user && !bl_ucid.empty? && !bl_user.blacklist.includes?(bl_ucid) %>
+                    <form style="display:inline" action="/subscription_ajax?action=blacklist_channel&c=<%= bl_ucid %>&referer=<%= env.get("current_page") %>" method="post">
+                        <input type="hidden" name="csrf_token" value="<%= HTML.escape(env.get?("csrf_token").try &.as(String) || "") %>">
+                        <button type="submit" title="Blacklist channel" style="all:unset;cursor:pointer">
+                            <i class="icon ion-md-close-circle"></i>
+                        </button>
+                    </form>
+                <% end %>
 
                 <%= rendered "components/video-context-buttons" %>
             </div>
