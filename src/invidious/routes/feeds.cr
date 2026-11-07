@@ -35,6 +35,8 @@ module Invidious::Routes::Feeds
     locale = env.get("preferences").as(Preferences).locale
 
     if CONFIG.popular_enabled
+      user = env.get?("user").try &.as(User)
+      popular = Invidious::Blacklist.filter(popular_videos, user)
       templated "feeds/popular"
     else
       message = I18n.translate(locale, "The Popular feed has been disabled by the administrator.")
@@ -57,6 +59,9 @@ module Invidious::Routes::Feeds
     rescue ex
       return Errors.error_template(500, ex)
     end
+
+    user = env.get?("user").try &.as(User)
+    trending = Invidious::Blacklist.filter(trending, user)
 
     templated "feeds/trending"
   end
