@@ -136,6 +136,34 @@ def decode_date(string : String)
   return Time.utc - delta
 end
 
+# Parses the date of a video that has not aired yet. On channel pages the
+# metadata of an upcoming premiere or scheduled livestream is a string like
+# "Premieres 11/15/26, 6:00 AM" or "Scheduled for 11/15/26, 6:00 AM" (with a
+# narrow no-break space before AM/PM) instead of the usual "N views" / "X ago".
+# Returns nil when the string can't be parsed.
+def decode_upcoming_date(string : String?) : Time?
+  return nil if string.nil?
+
+  # YouTube uses a narrow no-break space (and sometimes a regular
+  # non-breaking space) before AM/PM; normalize both to plain spaces.
+  string = string.gsub('\u202f', " ").gsub('\u00a0', " ")
+  string = string.lchop("Premieres ").lchop("Scheduled for ")
+
+  begin
+    # Format used on channel pages, e.g "11/15/26, 6:00 AM"
+    return Time.parse(string, "%m/%d/%y, %l:%M %p", Time::Location.local)
+  rescue ex
+  end
+
+  begin
+    # Fallback format, e.g "Nov 15, 2026" (same as decode_date's first try)
+    return Time.parse(string, "%b %-d, %Y", Time::Location.local)
+  rescue ex
+  end
+
+  return nil
+end
+
 def recode_date(time : Time, locale)
   span = Time.utc - time
 
