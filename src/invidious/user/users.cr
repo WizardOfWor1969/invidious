@@ -13,6 +13,7 @@ module Invidious::User::Users
       updated:           Time.utc,
       notifications:     [] of String,
       subscriptions:     [] of String,
+      blacklist:         [] of String,
       email:             email,
       preferences:       Preferences.new(CONFIG.default_user_preferences.to_tuple),
       password:          password.to_s,
