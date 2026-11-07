@@ -30,6 +30,29 @@
                 <i class="icon ion-logo-rss"></i>&nbsp;<%= I18n.translate(locale, "generic_button_rss") %>
             </a>
         </div>
+
+        <% bl_user = env.get?("user").try &.as(User) %>
+        <% if bl_user %>
+            <% if bl_user.blacklist.includes? ucid %>
+                <div class="pure-u">
+                    <form action="/subscription_ajax?action=unblacklist_channel&c=<%= ucid %>&referer=<%= env.get("current_page") %>" method="post" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="<%= HTML.escape(env.get?("csrf_token").try &.as(String) || "") %>">
+                        <button class="pure-button pure-button-secondary">
+                            <i class="icon ion-md-close-circle"></i>&nbsp;Unblacklist
+                        </button>
+                    </form>
+                </div>
+            <% else %>
+                <div class="pure-u">
+                    <form action="/subscription_ajax?action=blacklist_channel&c=<%= ucid %>&referer=<%= env.get("current_page") %>" method="post" style="display:inline">
+                        <input type="hidden" name="csrf_token" value="<%= HTML.escape(env.get?("csrf_token").try &.as(String) || "") %>">
+                        <button class="pure-button pure-button-secondary">
+                            <i class="icon ion-md-close-circle"></i>&nbsp;Blacklist
+                        </button>
+                    </form>
+                </div>
+            <% end %>
+        <% end %>
     </div>
 </div>
 

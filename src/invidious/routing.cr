@@ -79,6 +79,7 @@ module Invidious::Routing
     post "/token_ajax", Routes::Account, :token_ajax
     post "/subscription_ajax", Routes::Subscriptions, :toggle_subscription
     get "/subscription_manager", Routes::Subscriptions, :subscription_manager
+    get "/blacklist_manager", Routes::Subscriptions, :blacklist_manager
   end
 
   def register_iv_playlist_routes

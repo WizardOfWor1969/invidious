@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.users
   token text,
   watched text[],
   feed_needs_update boolean,
+  blacklist text[],
   CONSTRAINT users_email_key UNIQUE (email)
 );
 
