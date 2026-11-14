@@ -95,8 +95,17 @@ struct Video
 
   def fmt_stream : Array(Hash(String, JSON::Any))
     if formats = info.dig?("streamingData", "formats")
+      # YouTube sometimes advertises a progressive format whose file on the
+      # CDN is only a tiny stub (seen on zeus: an "itag 18" of 1.15 MB for a
+      # 47-minute video, ~3 kbps). Such a format carries no "contentLength"
+      # in the player response (healthy progressive formats always do), and
+      # playing it fails instantly with a decoder error (truncated MP4) —
+      # with no other progressive quality on the video, players that prefer
+      # progressive sources cannot escape it. Drop these stubs so players
+      # fall back to the DASH streams, which are unaffected.
       return formats
         .as_a.map(&.as_h)
+        .reject! { |f| !f["contentLength"]? }
         .sort_by! { |f| f["width"]?.try &.as_i || 0 }
     else
       return [] of Hash(String, JSON::Any)
